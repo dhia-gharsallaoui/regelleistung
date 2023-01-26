@@ -1,0 +1,3341 @@
+openapi: 3.0.0
+info:
+  description: IP RL BSP API for participation in capacity/energy market tenders.
+  title: IP RL BSP API
+  version: "3.0"
+servers:
+- description: PROD
+  url: https://api.regelleistung.net/v3
+- description: TRAINING
+  url: https://api-training.regelleistung.net/v3
+- description: INTEGRATION
+  url: https://api-integration.regelleistung.net/v3
+tags:
+- description: "Querying, submitting and modifying bids (capacity market, energy market)."
+  name: Bidding
+- description: "Tender data (properties, status) (capacity market, energy market)."
+  name: Tenders
+- description: "Tender results (public) (capacity market, energy market)."
+  name: Results
+- description: "Document archive (results) (capacity market, energy market)."
+  name: Documents
+- description: "Information about your BSP specific data, e.g. contracts and pre-qualified\
+    \ capacities."
+  name: BSP
+- name: Notifications
+- name: Health
+- description: Batch processing multiple API operations in a single request
+  name: Batch
+paths:
+  /bids:
+    get:
+      description: |
+        Returns the list of all submitted capacity/energy bids and complex bid components sorted in the following order:
+          * `productType`,
+          * `productName`,
+          * `state`,
+          * `revisionTimestamp`,
+          * `id`.
+
+        The result list can be reduced as required by specifying combinations of different filter parameters.
+      operationId: getBids
+      parameters:
+      - description: "Only bids for the specified delivery date will be listed (ISO\
+          \ 8601 format YYYY-MM-DD). If not specified and also no tender ID is specified,\
+          \ then only bids for today's delivery day will be listed."
+        explode: true
+        in: query
+        name: delivery-date
+        required: false
+        schema:
+          format: date
+          type: string
+        style: form
+      - description: "Market filter. If not specified and also no tender ID is specified,\
+          \ then only bids for capacity market will be listed."
+        explode: true
+        in: query
+        name: market
+        required: false
+        schema:
+          $ref: '#/components/schemas/ReserveMarket'
+        style: form
+      - description: "By specifying the tender ID, only bids of this tender will be\
+          \ listed. For details on the tender id format, see the [reference guide.](/docs/guide#tender-id)"
+        explode: true
+        in: query
+        name: tender
+        required: false
+        schema:
+          $ref: '#/components/schemas/TenderIdentification'
+        style: form
+      - description: "Product type filter. If this query parameter is not set and\
+          \ also no tender ID is specified, bids for all product types are returned."
+        explode: true
+        in: query
+        name: product-type
+        required: false
+        schema:
+          $ref: '#/components/schemas/ProductType'
+        style: form
+      - description: "Product name filter. If this query parameter is not set, bids\
+          \ for all product names are returned."
+        explode: true
+        in: query
+        name: product-name
+        required: false
+        schema:
+          $ref: '#/components/schemas/ProductName'
+        style: form
+      - explode: true
+        in: query
+        name: state
+        required: false
+        schema:
+          enum:
+          - OFFERED
+          - ACCEPTED
+          - REJECTED
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: zone
+        required: false
+        schema:
+          $ref: '#/components/schemas/EIC'
+        style: form
+      - explode: true
+        in: query
+        name: from
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: to
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: "By specifying the type, only bids of this type will be listed."
+        explode: true
+        in: query
+        name: type
+        required: false
+        schema:
+          $ref: '#/components/schemas/BidType'
+        style: form
+      - description: Filters bids that have the given complex bid ID.
+        explode: true
+        in: query
+        name: cid
+        required: false
+        schema:
+          $ref: '#/components/schemas/BidIdentification'
+        style: form
+      - description: Filters bids that have the given bid group ID.
+        explode: true
+        in: query
+        name: gid
+        required: false
+        schema:
+          $ref: '#/components/schemas/BidIdentification'
+        style: form
+      - description: Filters bids that have the given technical link ID.
+        explode: true
+        in: query
+        name: link
+        required: false
+        schema:
+          $ref: '#/components/schemas/TechnicalLinkIdentification'
+        style: form
+      - description: Filters bids that have a conditional link to the given bid ID.
+        explode: true
+        in: query
+        name: linked-to
+        required: false
+        schema:
+          $ref: '#/components/schemas/BidIdentification'
+        style: form
+      - description: Filters bids that have the given tag.
+        explode: true
+        in: query
+        name: tag
+        required: false
+        schema:
+          $ref: '#/components/schemas/BidTag'
+        style: form
+      - explode: true
+        in: query
+        name: backups-only
+        required: false
+        schema:
+          default: false
+          type: boolean
+        style: form
+      - description: Filters bids which are a backup for the provider with the given
+          EIC
+        explode: true
+        in: query
+        name: backup-for
+        required: false
+        schema:
+          $ref: '#/components/schemas/EIC'
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          default: 0
+          type: integer
+        style: form
+      - description: The numbers of items to return
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          maximum: 2000
+          minimum: 1
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Bid'
+                type: array
+          description: List of bids.
+          headers:
+            X-Total-Count:
+              description: Count of the total number of available results.
+              explode: false
+              schema:
+                type: integer
+              style: simple
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bad request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+      security:
+      - OAuth2:
+        - read
+      summary: List submitted bids (optionally capacity or energy market)
+      tags:
+      - Bidding
+    post:
+      description: "Submission of a simple or complex bid for a open capacity/energy\
+        \ market tender. By specifying the product, delivery date and market, the\
+        \ bid is automatically assigned to the corresponding open tender. The gate\
+        \ closure time of the tender is relevant for the submission."
+      operationId: submitBid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BidSubmission'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BidSubmissionResponse'
+          description: "If successful, then the response will be returned with more\
+            \ details on the bid structures created."
+          links:
+            GetBidById:
+              description: |
+                The `id` value returned in the response can be used as the `id` parameter in `GET /bids/{id}`.
+              operationId: getBid
+              parameters:
+                id: $response.body#/id
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: "Bad request, e.g. validation exception"
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+      security:
+      - OAuth2:
+        - write
+      summary: "Submit a simple, complex bid or a complex bid component"
+      tags:
+      - Bidding
+  /bids/{id}:
+    delete:
+      description: |
+        This operation can be used to delete
+          * a specific simple bid (with the unique ID of the bid),
+          * a single component of a complex bid (with the unique ID of the bid component) or
+          * the entire complex bid with all its components (with the group ID of the complex bid).
+      operationId: deleteBid
+      parameters:
+      - description: Bid identification
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          $ref: '#/components/schemas/BidIdentification'
+        style: simple
+      responses:
+        "204":
+          description: The bid was deleted successfully.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bid not found
+      security:
+      - OAuth2:
+        - write
+      summary: "Deletes a simple, complex bid or a bid component"
+      tags:
+      - Bidding
+    get:
+      description: Returns the single bid with requested ID
+      operationId: getBid
+      parameters:
+      - description: Unique bid identification or group bid id of complex bid
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          $ref: '#/components/schemas/BidIdentification'
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bid'
+          description: Bid
+          links:
+            GetTender:
+              description: |
+                The `tender` value returned in the response can be used as the `id` parameter in `GET /tenders/{id}`.
+              operationId: getTender
+              parameters:
+                id: $response.body#/tender
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bid not found
+      security:
+      - OAuth2:
+        - read
+      summary: "Get a simple, complex bid or a complex bid component"
+      tags:
+      - Bidding
+    patch:
+      description: "Connecting zone, volumes and prices can be changed (only applies\
+        \ to simple bids and individual components of a complex bid). Furthermore,\
+        \ linkages can be defined. The validation rules apply as for bid submission.\
+        \ It is possible to only include necessary information (change) in the request\
+        \ body, thus omitting bid attributes which are not to be changed."
+      operationId: updateBid
+      parameters:
+      - description: Bid identification
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          $ref: '#/components/schemas/BidIdentification'
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BidModification'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bid'
+          description: "If successful, the updated bid is returned with a new revision\
+            \ timestamp."
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: "Bad request, e.g. validation exception"
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bid not found
+      security:
+      - OAuth2:
+        - write
+      summary: "Updates a simple, complex bid or a bid component"
+      tags:
+      - Bidding
+  /tenders:
+    get:
+      description: |
+        Returns the list of capacity/energy market tenders sorted in the following order:
+          * `gateClosureTime`,
+          * `productType`.
+
+        The result list can be reduced as required by specifying combinations of different filter parameters.
+      operationId: getTenderList
+      parameters:
+      - description: "Only tenders for the specified delivery date are listed (ISO\
+          \ 8601 format YYYY-MM-DD). If not specified, then only tenders for today\
+          \ and tomorrow are listed."
+        explode: true
+        in: query
+        name: delivery-date
+        required: false
+        schema:
+          format: date
+          type: string
+        style: form
+      - description: "If not specified, then only tenders for capacity market will\
+          \ be listed."
+        explode: true
+        in: query
+        name: market
+        required: false
+        schema:
+          $ref: '#/components/schemas/ReserveMarket'
+        style: form
+      - description: "Product type filter. If this query parameter is not set, tenders\
+          \ for all product types are returned."
+        explode: true
+        in: query
+        name: product-type
+        required: false
+        schema:
+          $ref: '#/components/schemas/ProductType'
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Tender'
+                type: array
+          description: List of filtered tenders.
+          headers:
+            X-Total-Count:
+              description: Count of the total number of available results.
+              explode: false
+              schema:
+                type: integer
+              style: simple
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bad request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+      security:
+      - OAuth2:
+        - read
+      summary: List tenders (optionally capacity/energy market)
+      tags:
+      - Tenders
+  /tenders/{id}:
+    get:
+      operationId: getTender
+      parameters:
+      - description: "Identificiation of requested tender. (For details on the new\
+          \ tender id format, see the [reference guide.](/docs/guide#tender-id))"
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          $ref: '#/components/schemas/TenderIdentification'
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tender'
+          description: Tender
+          links:
+            GetTenderResult:
+              description: |
+                The `id` value returned in the response can be used as the `tender` parameter in `GET /results?tender={id}`.
+              operationId: getAllocationResult
+              parameters:
+                tender: $response.body#/id
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Tender not found
+      security:
+      - OAuth2:
+        - read
+      summary: Get tender
+      tags:
+      - Tenders
+  /tenders/{id}/demands:
+    get:
+      description: Returns the specific demand of the tender.
+      operationId: getTenderDemand
+      parameters:
+      - description: "Identificiation of requested tender. (For details on the new\
+          \ tender id format, see the [reference guide.](/docs/guide#tender-id))"
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          $ref: '#/components/schemas/TenderIdentification'
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Demand'
+                type: array
+          description: List of demand elements
+          headers:
+            X-Total-Count:
+              description: Count of the total number of available results.
+              explode: false
+              schema:
+                type: integer
+              style: simple
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Tender not found
+      security:
+      - OAuth2:
+        - read
+      summary: Demand of tender
+      tags:
+      - Tenders
+  /results:
+    get:
+      description: |
+        Returns the anonymous results of allocated tenders sorted in the following order:
+          * `market`,
+          * `productType`,
+          * `productName`,
+          * `allocationRanking`
+
+        The result list can be reduced as required by specifying combinations of different filter parameters.
+      operationId: getAllocationResults
+      parameters:
+      - description: "Only results for the specified delivery date will be listed\
+          \ (ISO 8601 format YYYY-MM-DD). If not specified and also no tender ID is\
+          \ specified, then only results for today's delivery day will be listed."
+        explode: true
+        in: query
+        name: delivery-date
+        required: false
+        schema:
+          format: date
+          type: string
+        style: form
+      - description: "Market filter. If not specified and also no tender ID is specified,\
+          \ then only bids for capacity market will be listed."
+        explode: true
+        in: query
+        name: market
+        required: false
+        schema:
+          $ref: '#/components/schemas/ReserveMarket'
+        style: form
+      - description: "By specifying the tender ID, only results of this tender will\
+          \ be listed."
+        explode: true
+        in: query
+        name: tender
+        required: false
+        schema:
+          $ref: '#/components/schemas/TenderIdentification'
+        style: form
+      - description: "Product type filter. If this query parameter is not set and\
+          \ also no tender ID is specified, results for all product types are returned."
+        explode: true
+        in: query
+        name: product-type
+        required: false
+        schema:
+          $ref: '#/components/schemas/ProductType'
+        style: form
+      - explode: true
+        in: query
+        name: product-name
+        required: false
+        schema:
+          $ref: '#/components/schemas/ProductName'
+        style: form
+      - explode: true
+        in: query
+        name: state
+        required: false
+        schema:
+          enum:
+          - ACCEPTED
+          - REJECTED
+          type: string
+        style: form
+      - example: DE
+        explode: true
+        in: query
+        name: zone
+        required: false
+        schema:
+          $ref: '#/components/schemas/CountryCode'
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          default: 0
+          type: integer
+        style: form
+      - description: The numbers of items to return
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          maximum: 2000
+          minimum: 1
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/AllocationResultElement'
+                type: array
+          description: List of allocation results.
+          headers:
+            X-Total-Count:
+              description: Count of the total number of available results.
+              explode: false
+              schema:
+                type: integer
+              style: simple
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bad request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+      security:
+      - OAuth2:
+        - read
+      summary: Anonymous results
+      tags:
+      - Results
+  /documents:
+    get:
+      description: File archive interface of final result documents.
+      operationId: getDocuments
+      parameters:
+      - description: "Only documents for the specified delivery date are listed (ISO\
+          \ 8601 format YYYY-MM-DD). If not specified and also no tender ID is specified,\
+          \ then only documents for today's delivery day will be listed."
+        explode: true
+        in: query
+        name: delivery-date
+        required: false
+        schema:
+          format: date
+          type: string
+        style: form
+      - description: Tender Id filter.
+        explode: true
+        in: query
+        name: tender
+        required: false
+        schema:
+          $ref: '#/components/schemas/TenderIdentification'
+        style: form
+      - description: "If not specified and also no tender ID is specified, documents\
+          \ for all markets are returned."
+        explode: true
+        in: query
+        name: market
+        required: false
+        schema:
+          $ref: '#/components/schemas/ReserveMarket'
+        style: form
+      - description: "Product type filter. If this query parameter is not set and\
+          \ also no tender ID is specified, documents for all product types are returned."
+        explode: true
+        in: query
+        name: product-type
+        required: false
+        schema:
+          $ref: '#/components/schemas/ProductType'
+        style: form
+      - description: "Tag filter. If this query parameter is not set, values for all\
+          \ tags are returned."
+        explode: true
+        in: query
+        name: tag
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          default: 0
+          type: integer
+        style: form
+      - description: The numbers of items to return
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          maximum: 2000
+          minimum: 1
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ResultDocument'
+                type: array
+          description: List of filtered documents.
+          headers:
+            X-Total-Count:
+              description: Count of the total number of available results.
+              explode: false
+              schema:
+                type: integer
+              style: simple
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bad request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+      security:
+      - OAuth2:
+        - read
+      summary: Result documents
+      tags:
+      - Documents
+  /documents/{id}:
+    get:
+      operationId: getDocument
+      parameters:
+      - description: Document identification
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          $ref: '#/components/schemas/ResourceIdentification'
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultDocument'
+          description: Document
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Document not found
+      security:
+      - OAuth2:
+        - read
+      summary: Returns a document by its id.
+      tags:
+      - Documents
+  /documents/{id}/content:
+    get:
+      operationId: getDocumentContent
+      parameters:
+      - description: Document identification
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          $ref: '#/components/schemas/ResourceIdentification'
+        style: simple
+      responses:
+        "200":
+          content:
+            application/octet-stream:
+              schema:
+                format: byte
+                type: string
+          description: Document download
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Document not found
+      security:
+      - OAuth2:
+        - read
+      summary: Returns the content of requested document as "file download"
+      tags:
+      - Documents
+  /framework-agreements:
+    get:
+      description: Returns current framework agreements.
+      operationId: getFrameworkContracts
+      parameters:
+      - description: "Product type filter for framework agreements. If this query\
+          \ parameter is not set, contracts for all product types are returned."
+        explode: true
+        in: query
+        name: product-type
+        required: false
+        schema:
+          enum:
+          - FCR
+          - aFRR
+          - mFRR
+          type: string
+          uniqueItems: true
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/FrameworkAgreement'
+                type: array
+          description: List of framework agreements
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bad request.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+      security:
+      - OAuth2:
+        - read
+      summary: Current framework agreements
+      tags:
+      - BSP
+  /backup-contracts:
+    get:
+      description: Returns valid backup contracts.
+      operationId: getBackupContracts
+      parameters:
+      - description: "Contracts for a specified day can be queried. If not specified,\
+          \ contracts for today will be listed."
+        explode: true
+        in: query
+        name: valid-date
+        required: false
+        schema:
+          format: date
+          type: string
+        style: form
+      - description: "Product type filter for contracts. If not specified, then contracts\
+          \ for all product types are returned."
+        explode: true
+        in: query
+        name: product-type
+        required: false
+        schema:
+          enum:
+          - aFRR
+          - mFRR
+          type: string
+          uniqueItems: true
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/BackupContract'
+                type: array
+          description: List of backup contracts
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bad request.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+      security:
+      - OAuth2:
+        - read
+      summary: Returns current backup contracts
+      tags:
+      - BSP
+  /pre-qualified-capacities/{deliveryDate}:
+    get:
+      description: Returns my pre-qualified capacities in each control area (sum of
+        PTU capacities) valid on specific delivery date.
+      operationId: getPreQualifiedCapacities
+      parameters:
+      - description: Defines the delivery date for which the pre-qualified capacities
+          are to be returned.
+        explode: false
+        in: path
+        name: deliveryDate
+        required: true
+        schema:
+          format: date
+          type: string
+        style: simple
+      - description: "Product type filter for contracts. If not specified, then contracts\
+          \ for all product types are returned."
+        explode: true
+        in: query
+        name: product-type
+        required: false
+        schema:
+          enum:
+          - FCR
+          - aFRR
+          - mFRR
+          type: string
+          uniqueItems: true
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/PrequalifiedCapacity'
+                type: array
+          description: List of pre-qualified capacities
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bad request.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+      security:
+      - OAuth2:
+        - read
+      summary: Prequalified capacities.
+      tags:
+      - BSP
+  /notifications:
+    get:
+      description: Returns new notifications about the tendering process since the
+        given datetime parameter. The result list is ordered by publishing time descending.
+      operationId: getNotifications
+      parameters:
+      - description: "Product type filter for notifications. If not specified, then\
+          \ notifications for all product types are returned."
+        explode: true
+        in: query
+        name: product-type
+        required: false
+        schema:
+          enum:
+          - FCR
+          - aFRR
+          - mFRR
+          type: string
+          uniqueItems: true
+        style: form
+      - description: "Oldest publishing time of notfications to be returned. If not\
+          \ specified, then only notifications within the last 24 hours are returned."
+        explode: true
+        in: query
+        name: after
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: The numbers of items to return
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          maximum: 2000
+          minimum: 1
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Notification'
+                type: array
+          description: List of notifications
+          headers:
+            X-Total-Count:
+              description: Count of the total number of available results after the
+                given point in time.
+              explode: false
+              schema:
+                type: integer
+              style: simple
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bad request.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+      security:
+      - OAuth2:
+        - read
+      summary: Notifications
+      tags:
+      - Notifications
+  /health:
+    get:
+      description: Provides information about the current availability of base functions
+        of the IP RL platform.
+      operationId: getApiHealthInformations
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: Returns current API health informations.
+      summary: API health endpoint.
+      tags:
+      - Health
+  /batch:
+    post:
+      description: |
+        Batch requests take the form of a series of REST API requests. The overall result in the form of arrayed REST API responses is then returned to the client. This is useful for reducing HTTP overhead. The following conditions apply when using the batch endpoint:
+          * The responses to the operations are returned in the same order as requested.
+          * Only POST, PATCH and DELETE methods on /bids are supported.
+          * The number of operations per batch is limited to 100.
+          * Each operation is executed separately. The failure of one operation has no effect on the execution of the other operations in the batch or the processing of the overall batch. There is no transactionality across or dependency between single batch operations. E.g. one operation can fail and all following can still succeed!
+      operationId: batch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchRequest'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchResponse'
+          description: If successfully processed. The status of each operations must
+            be read from the corresponding responses.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bad request.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Unauthorized - The request cannot be performed without valid
+            authentication.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Forbidden - The authenticated user is not authorized
+      security:
+      - OAuth2:
+        - write
+      summary: Submit batch requests
+      tags:
+      - Batch
+components:
+  parameters:
+    offsetQueryParameter:
+      description: The number of items to skip before starting to collect the result
+        set.
+      explode: true
+      in: query
+      name: offset
+      required: false
+      schema:
+        default: 0
+        type: integer
+      style: form
+    limitQueryParameter:
+      description: The numbers of items to return
+      explode: true
+      in: query
+      name: limit
+      required: false
+      schema:
+        default: 100
+        maximum: 2000
+        minimum: 1
+        type: integer
+      style: form
+  responses:
+    Unauthorized:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+      description: Unauthorized - The request cannot be performed without valid authentication.
+    Forbidden:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+      description: Forbidden - The authenticated user is not authorized
+  schemas:
+    Bid:
+      description: Representation of an submitted bid.
+      example:
+        revisionTimestamp: 2020-04-14T11:31:07.223Z
+        groupId: ej239eu2uue9229u29
+        conditionalLinkage:
+          links:
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+        technicalLinkage:
+          linkId: 2UWMW0psXNdE0PqWLZjhY2
+        productName: null
+        minQuantity:
+          quantity: 5
+          measureUnit: MAW
+        complexBidId: ej239eu2uue9229u29
+        receiptTimestamp: 2020-04-14T11:31:07.223Z
+        timeInterval:
+          startTime: 2020-04-22T22:00:00Z
+          endTime: 2020-04-23T02:00:00Z
+        id: ej239eu2uue9229u29
+        tag: custom-tag
+        deliveryDate: 2020-04-23T00:00:00.000+00:00
+        prices:
+        - amount: 7.98
+          measureUnit: MAW
+          currency: EUR
+          type: OFFER
+          resolution: PT1H
+          paymentDirection: GRID_TO_PROVIDER
+        - amount: 7.98
+          measureUnit: MAW
+          currency: EUR
+          type: OFFER
+          resolution: PT1H
+          paymentDirection: GRID_TO_PROVIDER
+        productType: null
+        direction: null
+        tender: afrr-2020-04-23-cm-001
+        connectingZone:
+          zone: 10YDE-VE-------2
+          zoneType: LFC_AREA
+        bidType: null
+        backupFor:
+          name: name
+          shortName: shortName
+          eic: 10YDE-VE-------2
+        market: null
+        acceptedQuantity:
+          quantity: 5
+          measureUnit: MAW
+        resourceProvider: 10YDE-VE-------2
+        activation: null
+        offeredQuantity:
+          quantity: 5
+          measureUnit: MAW
+        status: OFFERED
+      properties:
+        id:
+          description: Bid identification
+          example: ej239eu2uue9229u29
+          pattern: "^[a-zA-Z0-9]{18,22}$"
+          type: string
+        complexBidId:
+          description: Bid identification
+          example: ej239eu2uue9229u29
+          pattern: "^[a-zA-Z0-9]{18,22}$"
+          type: string
+        groupId:
+          description: Bid identification
+          example: ej239eu2uue9229u29
+          pattern: "^[a-zA-Z0-9]{18,22}$"
+          type: string
+        bidType:
+          $ref: '#/components/schemas/BidType'
+        tender:
+          description: |
+            The tender identification is structured as follows:
+              `[productType]-[deliveryDate]-[market]-[sequenceNumber]`
+
+              * `productType` - one of `fcr`, `afrr` or `mfrr`
+              * `deliveryDate` - ISO 8601 date
+              * `market` - one of `cm`(capacity market) or `em`(energy market)
+              * `sequenceNumber` - An ascending number for the identification of different tender runs or time slices.
+
+             For more details on the new tender id format, see the [reference guide.](/docs/guide#tender-id).
+          example: afrr-2020-04-23-cm-001
+          pattern: "^(fcr|afrr|mfrr)-(([1-9][0-9]{3})-(1[0-2]|0[1-9])-(0[1-9]|[1-2][0-9]|3[0-1]))-((cm|em)-(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+          readOnly: true
+          type: string
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        deliveryDate:
+          description: Delivery day of offered control reserve / energy (ISO 8601
+            format YYYY-MM-DD).
+          example: 2020-04-23
+          format: date
+          type: string
+        market:
+          $ref: '#/components/schemas/ReserveMarket'
+        productName:
+          $ref: '#/components/schemas/ProductName'
+        direction:
+          $ref: '#/components/schemas/Direction'
+        timeInterval:
+          $ref: '#/components/schemas/TimeInterval'
+        connectingZone:
+          $ref: '#/components/schemas/ConnectingZone'
+        resourceProvider:
+          description: "Representation of EIC. The coding scheme is the Energy Identification\
+            \ Coding Scheme (EIC), maintained by ENTSO-e."
+          example: 10YDE-VE-------2
+          pattern: "^[-A-Z0-9]{16}$"
+          type: string
+        status:
+          enum:
+          - OFFERED
+          - ACCEPTED
+          - REJECTED
+          type: string
+        receiptTimestamp:
+          description: Receipt time of the bid.
+          example: 2020-04-14T11:31:07.223Z
+          format: date-time
+          type: string
+        revisionTimestamp:
+          description: Revision timestamp of the bid.
+          example: 2020-04-14T11:31:07.223Z
+          format: date-time
+          type: string
+        activation:
+          $ref: '#/components/schemas/ActivationType'
+        minQuantity:
+          $ref: '#/components/schemas/Quantity'
+        offeredQuantity:
+          $ref: '#/components/schemas/Quantity'
+        acceptedQuantity:
+          $ref: '#/components/schemas/Quantity'
+        prices:
+          description: Price information of the bid.
+          items:
+            $ref: '#/components/schemas/Price'
+          minItems: 1
+          type: array
+          uniqueItems: true
+        technicalLinkage:
+          $ref: '#/components/schemas/TechnicalLinkage'
+        conditionalLinkage:
+          $ref: '#/components/schemas/ConditionalLinkage'
+        backupFor:
+          $ref: '#/components/schemas/BalancingServiceProvider'
+        tag:
+          description: Custom tag for bids
+          example: custom-tag
+          maxLength: 36
+          minLength: 1
+          pattern: "([a-zA-Z0-9_-])*"
+          type: string
+      readOnly: true
+      required:
+      - bidType
+      - connectingZone
+      - deliveryDate
+      - direction
+      - id
+      - market
+      - offeredQuantity
+      - prices
+      - productName
+      - productType
+      - receiptTimestamp
+      - resourceProvider
+      - revisionTimestamp
+      - status
+      - tender
+      - timeInterval
+      type: object
+    BidSubmission:
+      description: "Submission of a simple/complex bid, a complex bid component or\
+        \ a bid group."
+      oneOf:
+      - $ref: '#/components/schemas/SimpleBid'
+      - $ref: '#/components/schemas/ComplexBid'
+      - $ref: '#/components/schemas/ComplexBidComponent'
+      - $ref: '#/components/schemas/BidGroup'
+      type: object
+    SimpleBid:
+      description: Simple bid.
+      properties:
+        market:
+          $ref: '#/components/schemas/ReserveMarket'
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        groupId:
+          description: Bid identification
+          example: ej239eu2uue9229u29
+          pattern: "^[a-zA-Z0-9]{18,22}$"
+          type: string
+        bidType:
+          $ref: '#/components/schemas/BidType'
+        deliveryDate:
+          description: Delivery day of offered control reserve / energy (ISO 8601
+            format YYYY-MM-DD).
+          example: 2020-04-23
+          format: date
+          type: string
+        productName:
+          $ref: '#/components/schemas/ProductName'
+        timeInterval:
+          $ref: '#/components/schemas/TimeInterval'
+        direction:
+          $ref: '#/components/schemas/Direction'
+        connectingZone:
+          $ref: '#/components/schemas/ConnectingZone'
+        activation:
+          $ref: '#/components/schemas/ActivationType'
+        minQuantity:
+          $ref: '#/components/schemas/Quantity'
+        offeredQuantity:
+          $ref: '#/components/schemas/Quantity'
+        prices:
+          description: Price information of the bid.
+          items:
+            $ref: '#/components/schemas/Price'
+          minItems: 1
+          type: array
+          uniqueItems: true
+        technicalLinkage:
+          $ref: '#/components/schemas/TechnicalLinkage'
+        conditionalLinkage:
+          $ref: '#/components/schemas/ConditionalLinkage'
+        backupFor:
+          $ref: '#/components/schemas/BalancingServiceProvider'
+        tag:
+          description: Custom tag for bids
+          example: custom-tag
+          maxLength: 36
+          minLength: 1
+          pattern: "([a-zA-Z0-9_-])*"
+          type: string
+      required:
+      - connectingZone
+      - market
+      - offeredQuantity
+      - prices
+      - productType
+      type: object
+    ComplexBid:
+      description: Complex bid
+      properties:
+        market:
+          $ref: '#/components/schemas/ReserveMarket'
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        bidType:
+          $ref: '#/components/schemas/BidType'
+        timeInterval:
+          $ref: '#/components/schemas/TimeInterval'
+        connectingZone:
+          $ref: '#/components/schemas/ConnectingZone'
+        activation:
+          $ref: '#/components/schemas/ActivationType'
+        technicalLinkage:
+          $ref: '#/components/schemas/TechnicalLinkage'
+        backupFor:
+          $ref: '#/components/schemas/BalancingServiceProvider'
+        tag:
+          description: Custom tag for bids
+          example: custom-tag
+          maxLength: 36
+          minLength: 1
+          pattern: "([a-zA-Z0-9_-])*"
+          type: string
+        components:
+          items:
+            $ref: '#/components/schemas/ComplexBidComponent'
+          minItems: 2
+          type: array
+      required:
+      - bidType
+      - components
+      - market
+      - productType
+      type: object
+    ComplexBidComponent:
+      description: Complex bid component.
+      properties:
+        bidType:
+          $ref: '#/components/schemas/BidType'
+        complexBidId:
+          description: Bid identification
+          example: ej239eu2uue9229u29
+          pattern: "^[a-zA-Z0-9]{18,22}$"
+          type: string
+        direction:
+          $ref: '#/components/schemas/Direction'
+        minQuantity:
+          $ref: '#/components/schemas/Quantity'
+        offeredQuantity:
+          $ref: '#/components/schemas/Quantity'
+        prices:
+          description: Price information of the bid.
+          items:
+            $ref: '#/components/schemas/Price'
+          minItems: 1
+          type: array
+          uniqueItems: true
+        tag:
+          description: Custom tag for bids
+          example: custom-tag
+          maxLength: 36
+          minLength: 1
+          pattern: "([a-zA-Z0-9_-])*"
+          type: string
+      required:
+      - direction
+      - offeredQuantity
+      - prices
+      type: object
+    BidGroup:
+      description: Bid Group
+      properties:
+        market:
+          $ref: '#/components/schemas/ReserveMarket'
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        bidType:
+          $ref: '#/components/schemas/BidType'
+        timeInterval:
+          $ref: '#/components/schemas/TimeInterval'
+        tag:
+          description: Custom tag for bids
+          example: custom-tag
+          maxLength: 36
+          minLength: 1
+          pattern: "([a-zA-Z0-9_-])*"
+          type: string
+        components:
+          items:
+            $ref: '#/components/schemas/SimpleBid'
+          maxItems: 2000
+          minItems: 1
+          type: array
+      required:
+      - bidType
+      - components
+      - market
+      - productType
+      type: object
+    BidSubmissionResponse:
+      example:
+        components:
+        - revisionTimestamp: 2020-04-14T11:31:07.223Z
+          groupId: ej239eu2uue9229u29
+          conditionalLinkage:
+            links:
+            - linkedTo: ej239eu2uue9229u29
+              condition: null
+            - linkedTo: ej239eu2uue9229u29
+              condition: null
+            - linkedTo: ej239eu2uue9229u29
+              condition: null
+            - linkedTo: ej239eu2uue9229u29
+              condition: null
+            - linkedTo: ej239eu2uue9229u29
+              condition: null
+          technicalLinkage:
+            linkId: 2UWMW0psXNdE0PqWLZjhY2
+          productName: null
+          minQuantity:
+            quantity: 5
+            measureUnit: MAW
+          complexBidId: ej239eu2uue9229u29
+          receiptTimestamp: 2020-04-14T11:31:07.223Z
+          timeInterval:
+            startTime: 2020-04-22T22:00:00Z
+            endTime: 2020-04-23T02:00:00Z
+          id: ej239eu2uue9229u29
+          tag: custom-tag
+          deliveryDate: 2020-04-23T00:00:00.000+00:00
+          prices:
+          - amount: 7.98
+            measureUnit: MAW
+            currency: EUR
+            type: OFFER
+            resolution: PT1H
+            paymentDirection: GRID_TO_PROVIDER
+          - amount: 7.98
+            measureUnit: MAW
+            currency: EUR
+            type: OFFER
+            resolution: PT1H
+            paymentDirection: GRID_TO_PROVIDER
+          productType: null
+          direction: null
+          tender: afrr-2020-04-23-cm-001
+          connectingZone:
+            zone: 10YDE-VE-------2
+            zoneType: LFC_AREA
+          bidType: null
+          backupFor:
+            name: name
+            shortName: shortName
+            eic: 10YDE-VE-------2
+          market: null
+          acceptedQuantity:
+            quantity: 5
+            measureUnit: MAW
+          resourceProvider: 10YDE-VE-------2
+          activation: null
+          offeredQuantity:
+            quantity: 5
+            measureUnit: MAW
+          status: OFFERED
+        - revisionTimestamp: 2020-04-14T11:31:07.223Z
+          groupId: ej239eu2uue9229u29
+          conditionalLinkage:
+            links:
+            - linkedTo: ej239eu2uue9229u29
+              condition: null
+            - linkedTo: ej239eu2uue9229u29
+              condition: null
+            - linkedTo: ej239eu2uue9229u29
+              condition: null
+            - linkedTo: ej239eu2uue9229u29
+              condition: null
+            - linkedTo: ej239eu2uue9229u29
+              condition: null
+          technicalLinkage:
+            linkId: 2UWMW0psXNdE0PqWLZjhY2
+          productName: null
+          minQuantity:
+            quantity: 5
+            measureUnit: MAW
+          complexBidId: ej239eu2uue9229u29
+          receiptTimestamp: 2020-04-14T11:31:07.223Z
+          timeInterval:
+            startTime: 2020-04-22T22:00:00Z
+            endTime: 2020-04-23T02:00:00Z
+          id: ej239eu2uue9229u29
+          tag: custom-tag
+          deliveryDate: 2020-04-23T00:00:00.000+00:00
+          prices:
+          - amount: 7.98
+            measureUnit: MAW
+            currency: EUR
+            type: OFFER
+            resolution: PT1H
+            paymentDirection: GRID_TO_PROVIDER
+          - amount: 7.98
+            measureUnit: MAW
+            currency: EUR
+            type: OFFER
+            resolution: PT1H
+            paymentDirection: GRID_TO_PROVIDER
+          productType: null
+          direction: null
+          tender: afrr-2020-04-23-cm-001
+          connectingZone:
+            zone: 10YDE-VE-------2
+            zoneType: LFC_AREA
+          bidType: null
+          backupFor:
+            name: name
+            shortName: shortName
+            eic: 10YDE-VE-------2
+          market: null
+          acceptedQuantity:
+            quantity: 5
+            measureUnit: MAW
+          resourceProvider: 10YDE-VE-------2
+          activation: null
+          offeredQuantity:
+            quantity: 5
+            measureUnit: MAW
+          status: OFFERED
+        revisionTimestamp: 2020-04-14T11:31:07.223Z
+        groupId: ej239eu2uue9229u29
+        conditionalLinkage:
+          links:
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+        technicalLinkage:
+          linkId: 2UWMW0psXNdE0PqWLZjhY2
+        productName: null
+        minQuantity:
+          quantity: 5
+          measureUnit: MAW
+        complexBidId: ej239eu2uue9229u29
+        receiptTimestamp: 2020-04-14T11:31:07.223Z
+        timeInterval:
+          startTime: 2020-04-22T22:00:00Z
+          endTime: 2020-04-23T02:00:00Z
+        id: ej239eu2uue9229u29
+        tag: custom-tag
+        deliveryDate: 2020-04-23T00:00:00.000+00:00
+        prices:
+        - amount: 7.98
+          measureUnit: MAW
+          currency: EUR
+          type: OFFER
+          resolution: PT1H
+          paymentDirection: GRID_TO_PROVIDER
+        - amount: 7.98
+          measureUnit: MAW
+          currency: EUR
+          type: OFFER
+          resolution: PT1H
+          paymentDirection: GRID_TO_PROVIDER
+        productType: null
+        direction: null
+        tender: afrr-2020-04-23-cm-001
+        connectingZone:
+          zone: 10YDE-VE-------2
+          zoneType: LFC_AREA
+        bidType: null
+        backupFor:
+          name: name
+          shortName: shortName
+          eic: 10YDE-VE-------2
+        market: null
+        acceptedQuantity:
+          quantity: 5
+          measureUnit: MAW
+        resourceProvider: 10YDE-VE-------2
+        activation: null
+        offeredQuantity:
+          quantity: 5
+          measureUnit: MAW
+        status: OFFERED
+      properties:
+        id:
+          description: Bid identification
+          example: ej239eu2uue9229u29
+          pattern: "^[a-zA-Z0-9]{18,22}$"
+          type: string
+        complexBidId:
+          description: Bid identification
+          example: ej239eu2uue9229u29
+          pattern: "^[a-zA-Z0-9]{18,22}$"
+          type: string
+        groupId:
+          description: Bid identification
+          example: ej239eu2uue9229u29
+          pattern: "^[a-zA-Z0-9]{18,22}$"
+          type: string
+        bidType:
+          $ref: '#/components/schemas/BidType'
+        tender:
+          description: |
+            The tender identification is structured as follows:
+              `[productType]-[deliveryDate]-[market]-[sequenceNumber]`
+
+              * `productType` - one of `fcr`, `afrr` or `mfrr`
+              * `deliveryDate` - ISO 8601 date
+              * `market` - one of `cm`(capacity market) or `em`(energy market)
+              * `sequenceNumber` - An ascending number for the identification of different tender runs or time slices.
+
+             For more details on the new tender id format, see the [reference guide.](/docs/guide#tender-id).
+          example: afrr-2020-04-23-cm-001
+          pattern: "^(fcr|afrr|mfrr)-(([1-9][0-9]{3})-(1[0-2]|0[1-9])-(0[1-9]|[1-2][0-9]|3[0-1]))-((cm|em)-(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+          readOnly: true
+          type: string
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        deliveryDate:
+          description: Delivery day of offered control reserve / energy (ISO 8601
+            format YYYY-MM-DD).
+          example: 2020-04-23
+          format: date
+          type: string
+        market:
+          $ref: '#/components/schemas/ReserveMarket'
+        productName:
+          $ref: '#/components/schemas/ProductName'
+        direction:
+          $ref: '#/components/schemas/Direction'
+        timeInterval:
+          $ref: '#/components/schemas/TimeInterval'
+        connectingZone:
+          $ref: '#/components/schemas/ConnectingZone'
+        resourceProvider:
+          description: "Representation of EIC. The coding scheme is the Energy Identification\
+            \ Coding Scheme (EIC), maintained by ENTSO-e."
+          example: 10YDE-VE-------2
+          pattern: "^[-A-Z0-9]{16}$"
+          type: string
+        status:
+          enum:
+          - OFFERED
+          - ACCEPTED
+          - REJECTED
+          type: string
+        receiptTimestamp:
+          description: Receipt time of the bid.
+          example: 2020-04-14T11:31:07.223Z
+          format: date-time
+          type: string
+        revisionTimestamp:
+          description: Revision timestamp of the bid.
+          example: 2020-04-14T11:31:07.223Z
+          format: date-time
+          type: string
+        activation:
+          $ref: '#/components/schemas/ActivationType'
+        minQuantity:
+          $ref: '#/components/schemas/Quantity'
+        offeredQuantity:
+          $ref: '#/components/schemas/Quantity'
+        acceptedQuantity:
+          $ref: '#/components/schemas/Quantity'
+        prices:
+          description: Price information of the bid.
+          items:
+            $ref: '#/components/schemas/Price'
+          minItems: 1
+          type: array
+          uniqueItems: true
+        technicalLinkage:
+          $ref: '#/components/schemas/TechnicalLinkage'
+        conditionalLinkage:
+          $ref: '#/components/schemas/ConditionalLinkage'
+        backupFor:
+          $ref: '#/components/schemas/BalancingServiceProvider'
+        tag:
+          description: Custom tag for bids
+          example: custom-tag
+          maxLength: 36
+          minLength: 1
+          pattern: "([a-zA-Z0-9_-])*"
+          type: string
+        components:
+          items:
+            $ref: '#/components/schemas/Bid'
+          type: array
+      readOnly: true
+      type: object
+    BidModification:
+      description: Representation of bid modification.
+      example:
+        connectingZone:
+          zone: 10YDE-VE-------2
+          zoneType: LFC_AREA
+        minQuantity:
+          quantity: 5
+          measureUnit: MAW
+        prices:
+        - amount: 7.98
+          measureUnit: MAW
+          currency: EUR
+          type: OFFER
+          resolution: PT1H
+          paymentDirection: GRID_TO_PROVIDER
+        - amount: 7.98
+          measureUnit: MAW
+          currency: EUR
+          type: OFFER
+          resolution: PT1H
+          paymentDirection: GRID_TO_PROVIDER
+        activation: null
+        conditionalLinkage:
+          links:
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+          - linkedTo: ej239eu2uue9229u29
+            condition: null
+        offeredQuantity:
+          quantity: 5
+          measureUnit: MAW
+        technicalLinkage:
+          linkId: 2UWMW0psXNdE0PqWLZjhY2
+        backupFor:
+          name: name
+          shortName: shortName
+          eic: 10YDE-VE-------2
+      properties:
+        connectingZone:
+          $ref: '#/components/schemas/ConnectingZone'
+        minQuantity:
+          $ref: '#/components/schemas/Quantity'
+        offeredQuantity:
+          $ref: '#/components/schemas/Quantity'
+        prices:
+          description: Price information of the bid.
+          items:
+            $ref: '#/components/schemas/Price'
+          minItems: 1
+          type: array
+          uniqueItems: true
+        activation:
+          $ref: '#/components/schemas/ActivationType'
+        technicalLinkage:
+          $ref: '#/components/schemas/TechnicalLinkage'
+        conditionalLinkage:
+          $ref: '#/components/schemas/ConditionalLinkage'
+        backupFor:
+          $ref: '#/components/schemas/BalancingServiceProvider'
+      type: object
+    AllocationResultElement:
+      description: Representation of allocation result element.
+      example:
+        connectingZone:
+          zone: 10YDE-VE-------2
+          zoneType: LFC_AREA
+        allocationRanking: 1
+        indivisible: false
+        productName: null
+        market: null
+        activationRanking: 1
+        acceptedQuantity:
+          quantity: 5
+          measureUnit: MAW
+        timeInterval:
+          startTime: 2020-04-22T22:00:00Z
+          endTime: 2020-04-23T02:00:00Z
+        deliveryDate: 2020-04-23T00:00:00.000+00:00
+        prices:
+        - amount: 7.98
+          measureUnit: MAW
+          currency: EUR
+          type: OFFER
+          resolution: PT1H
+          paymentDirection: GRID_TO_PROVIDER
+        - amount: 7.98
+          measureUnit: MAW
+          currency: EUR
+          type: OFFER
+          resolution: PT1H
+          paymentDirection: GRID_TO_PROVIDER
+        offeredQuantity:
+          quantity: 5
+          measureUnit: MAW
+        productType: null
+        direction: null
+        status: ACCEPTED
+      properties:
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        deliveryDate:
+          description: Delivery day of offered control reserve / energy. (ISO 8601
+            format YYYY-MM-DD).
+          example: 2020-04-23
+          format: date
+          type: string
+        productName:
+          $ref: '#/components/schemas/ProductName'
+        direction:
+          $ref: '#/components/schemas/Direction'
+        timeInterval:
+          $ref: '#/components/schemas/TimeInterval'
+        connectingZone:
+          $ref: '#/components/schemas/ConnectingZone'
+        market:
+          $ref: '#/components/schemas/ReserveMarket'
+        status:
+          enum:
+          - ACCEPTED
+          - REJECTED
+          type: string
+        allocationRanking:
+          description: Specifies the allocation ranking of bids as a natural number
+            in ascending order starting at 1.
+          format: int32
+          minimum: 1
+          type: integer
+        activationRanking:
+          description: Specifies the activation ranking of accepted aFRR/mFRR bids
+            as a natural number in ascending order starting at 1.
+          format: int32
+          minimum: 1
+          nullable: true
+          type: integer
+        indivisible:
+          default: false
+          type: boolean
+        offeredQuantity:
+          $ref: '#/components/schemas/Quantity'
+        acceptedQuantity:
+          $ref: '#/components/schemas/Quantity'
+        prices:
+          description: Price informations.
+          items:
+            $ref: '#/components/schemas/Price'
+          minItems: 1
+          type: array
+          uniqueItems: true
+      readOnly: true
+      type: object
+    Tender:
+      description: Common representation of capacity/energy market tenders.
+      example:
+        market: null
+        result: NONE_AVAILABLE
+        gateClosureTime: 2020-04-22T08:00:00Z
+        timeInterval:
+          startTime: 2020-04-22T22:00:00Z
+          endTime: 2020-04-23T02:00:00Z
+        runNumber: 0
+        businessRulesKey: CM_FRR_2021_SPBC
+        id: afrr-2020-04-23-cm-001
+        state: OPEN
+        deliveryDate: 2020-04-23T00:00:00.000+00:00
+        gateOpenTime: 2020-04-16T10:00:00Z
+        productType: null
+        products:
+        - null
+        - null
+      properties:
+        id:
+          description: |
+            The tender identification is structured as follows:
+              `[productType]-[deliveryDate]-[market]-[sequenceNumber]`
+
+              * `productType` - one of `fcr`, `afrr` or `mfrr`
+              * `deliveryDate` - ISO 8601 date
+              * `market` - one of `cm`(capacity market) or `em`(energy market)
+              * `sequenceNumber` - An ascending number for the identification of different tender runs or time slices.
+
+             For more details on the new tender id format, see the [reference guide.](/docs/guide#tender-id).
+          example: afrr-2020-04-23-cm-001
+          pattern: "^(fcr|afrr|mfrr)-(([1-9][0-9]{3})-(1[0-2]|0[1-9])-(0[1-9]|[1-2][0-9]|3[0-1]))-((cm|em)-(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+          readOnly: true
+          type: string
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        deliveryDate:
+          description: Delivery day of offered control reserve / energy. (ISO 8601
+            format YYYY-MM-DD).
+          example: 2020-04-23
+          format: date
+          type: string
+        market:
+          $ref: '#/components/schemas/ReserveMarket'
+        timeInterval:
+          $ref: '#/components/schemas/TimeInterval'
+        gateOpenTime:
+          description: Gate open time of tender.
+          example: 2020-04-16T10:00:00Z
+          format: date-time
+          type: string
+        gateClosureTime:
+          description: Gate closure time of tender.
+          example: 2020-04-22T08:00:00Z
+          format: date-time
+          type: string
+        state:
+          description: "Actual state of the tender. For detailed information on the\
+            \ tender state model, see the [reference guide.](/docs/guide#tender-state-model)"
+          enum:
+          - OPEN
+          - CLOSED
+          - CANCELED
+          - FINISHED
+          type: string
+        result:
+          description: "Result of the tender. For detailed information on the specific\
+            \ tender results, see the [reference guide.](/docs/guide#tender-state-model)"
+          enum:
+          - NONE_AVAILABLE
+          - REGULAR
+          - FALLBACK
+          type: string
+        runNumber:
+          format: int32
+          nullable: true
+          type: integer
+        products:
+          description: Available products for tender.
+          items:
+            $ref: '#/components/schemas/ProductName'
+          minItems: 1
+          type: array
+          uniqueItems: true
+        businessRulesKey:
+          description: "Key to identify the current business rules for bidding. For\
+            \ detailed information, see the [reference guide.](/docs/guide#business-rules-key)"
+          example: CM_FRR_2021_SPBC
+          type: string
+      readOnly: true
+      type: object
+    Demand:
+      description: Representation of demand object.
+      example:
+        connectingZone:
+          zone: 10YDE-VE-------2
+          zoneType: LFC_AREA
+        data:
+          maxExport: 0
+          coreShare: 0
+          demand: 0
+        timeInterval:
+          startTime: 2020-04-22T22:00:00Z
+          endTime: 2020-04-23T02:00:00Z
+        productType: null
+        productName: null
+        direction: null
+      properties:
+        connectingZone:
+          $ref: '#/components/schemas/ConnectingZone'
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        productName:
+          $ref: '#/components/schemas/ProductName'
+        direction:
+          $ref: '#/components/schemas/Direction'
+        timeInterval:
+          $ref: '#/components/schemas/TimeInterval'
+        data:
+          $ref: '#/components/schemas/Demand_data'
+      readOnly: true
+      type: object
+    BalancingServiceProvider:
+      description: Representation of an provider.
+      example:
+        name: name
+        shortName: shortName
+        eic: 10YDE-VE-------2
+      properties:
+        shortName:
+          description: "A short, human-readable name of the provider."
+          type: string
+        name:
+          description: "Full, human-readable name of the provider."
+          type: string
+        eic:
+          description: "Representation of EIC. The coding scheme is the Energy Identification\
+            \ Coding Scheme (EIC), maintained by ENTSO-e."
+          example: 10YDE-VE-------2
+          pattern: "^[-A-Z0-9]{16}$"
+          type: string
+      readOnly: true
+      required:
+      - eic
+      type: object
+    PrequalifiedCapacity:
+      description: Representation of master contract.
+      example:
+        connectingZone:
+          zone: 10YDE-VE-------2
+          zoneType: LFC_AREA
+        maxPositiveCapacity: 0.6027456183070403
+        productType: null
+        maxNegativeCapacity: 0.08008281904610115
+      properties:
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        connectingZone:
+          $ref: '#/components/schemas/ConnectingZone'
+        maxNegativeCapacity:
+          description: Volume of maximum negative reserve in specific connecting zone.
+          format: int32
+          minimum: 0
+          type: number
+        maxPositiveCapacity:
+          description: Volume of maximum positive reserve in specific connecting zone.
+          format: int32
+          minimum: 0
+          type: number
+      readOnly: true
+      type: object
+    FrameworkAgreement:
+      description: Representation of framework agreements.
+      example:
+        validityPeriod:
+          endDate: 2020-12-31T00:00:00.000+00:00
+          startDate: 2019-01-01T00:00:00.000+00:00
+        connectingZone:
+          zone: 10YDE-VE-------2
+          zoneType: LFC_AREA
+        contractNumber: contractNumber
+        id: 2UWMW0psXNdE0PqWLZjhY2
+        resourceProvider: 10YDE-VE-------2
+        productType: null
+      properties:
+        id:
+          description: ID of a resource.
+          example: 2UWMW0psXNdE0PqWLZjhY2
+          maxLength: 36
+          minLength: 5
+          pattern: "([a-zA-Z0-9])*"
+          readOnly: true
+          type: string
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        connectingZone:
+          $ref: '#/components/schemas/ConnectingZone'
+        resourceProvider:
+          description: "Representation of EIC. The coding scheme is the Energy Identification\
+            \ Coding Scheme (EIC), maintained by ENTSO-e."
+          example: 10YDE-VE-------2
+          pattern: "^[-A-Z0-9]{16}$"
+          type: string
+        contractNumber:
+          type: string
+        validityPeriod:
+          $ref: '#/components/schemas/ContractValidityPeriod'
+      readOnly: true
+      type: object
+    BackupContract:
+      description: Representation of backup contract.
+      example:
+        validityPeriod:
+          endDate: 2020-12-31T00:00:00.000+00:00
+          startDate: 2019-01-01T00:00:00.000+00:00
+        backedUpProvider:
+          name: name
+          shortName: shortName
+          eic: 10YDE-VE-------2
+        backupProvider:
+          name: name
+          shortName: shortName
+          eic: 10YDE-VE-------2
+        id: 2UWMW0psXNdE0PqWLZjhY2
+        productType: null
+      properties:
+        id:
+          description: ID of a resource.
+          example: 2UWMW0psXNdE0PqWLZjhY2
+          maxLength: 36
+          minLength: 5
+          pattern: "([a-zA-Z0-9])*"
+          readOnly: true
+          type: string
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        backupProvider:
+          $ref: '#/components/schemas/BalancingServiceProvider'
+        backedUpProvider:
+          $ref: '#/components/schemas/BalancingServiceProvider'
+        validityPeriod:
+          $ref: '#/components/schemas/ContractValidityPeriod'
+      readOnly: true
+      required:
+      - id
+      type: object
+    ResultDocument:
+      description: Any result document that you can download.
+      example:
+        market: null
+        tender: afrr-2020-04-23-cm-001
+        createdAt: 2020-04-14T10:30:21.481Z
+        fileName: fileName
+        id: 2UWMW0psXNdE0PqWLZjhY2
+        deliveryDate: 2000-01-23
+        productType: null
+        tags:
+        - tags
+        - tags
+      properties:
+        id:
+          description: ID of a resource.
+          example: 2UWMW0psXNdE0PqWLZjhY2
+          maxLength: 36
+          minLength: 5
+          pattern: "([a-zA-Z0-9])*"
+          readOnly: true
+          type: string
+        fileName:
+          description: Document name
+          type: string
+        createdAt:
+          description: Creation time of the document.
+          example: 2020-04-14T10:30:21.481Z
+          format: date-time
+          type: string
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        deliveryDate:
+          description: Delivery day
+          format: date
+          type: string
+        market:
+          $ref: '#/components/schemas/ReserveMarket'
+        tender:
+          description: |
+            The tender identification is structured as follows:
+              `[productType]-[deliveryDate]-[market]-[sequenceNumber]`
+
+              * `productType` - one of `fcr`, `afrr` or `mfrr`
+              * `deliveryDate` - ISO 8601 date
+              * `market` - one of `cm`(capacity market) or `em`(energy market)
+              * `sequenceNumber` - An ascending number for the identification of different tender runs or time slices.
+
+             For more details on the new tender id format, see the [reference guide.](/docs/guide#tender-id).
+          example: afrr-2020-04-23-cm-001
+          pattern: "^(fcr|afrr|mfrr)-(([1-9][0-9]{3})-(1[0-2]|0[1-9])-(0[1-9]|[1-2][0-9]|3[0-1]))-((cm|em)-(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+          readOnly: true
+          type: string
+        tags:
+          description: |
+            Tags are used to group the documents. A list of current tags can be found in the API documentation.
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+      readOnly: true
+      type: object
+    Notification:
+      description: From TSOs or automatically generated notifications to providers.
+      example:
+        reference:
+          market: null
+          tender: afrr-2020-04-23-cm-001
+          deliveryDate: 2020-04-23T00:00:00.000+00:00
+          productType: null
+          products:
+          - null
+          - null
+        publishedAt: 2020-04-14T11:15:09Z
+        id: 2UWMW0psXNdE0PqWLZjhY2
+        reasonCode: reasonCode
+        title: title
+      properties:
+        id:
+          description: ID of a resource.
+          example: 2UWMW0psXNdE0PqWLZjhY2
+          maxLength: 36
+          minLength: 5
+          pattern: "([a-zA-Z0-9])*"
+          readOnly: true
+          type: string
+        title:
+          description: "A short, human-readable summary."
+          type: string
+        reasonCode:
+          description: |
+            The ReasonCode is used to identify the technical reason for the current notification. A list of reason codes can be found in the API documentation.
+          type: string
+          uniqueItems: true
+        publishedAt:
+          description: Publishing time of the notification.
+          example: 2020-04-14T11:15:09Z
+          format: date-time
+          type: string
+        reference:
+          $ref: '#/components/schemas/Notification_reference'
+      readOnly: true
+      type: object
+    ConnectingZone:
+      description: |
+        Representation of a connecting zone.
+      example:
+        zone: 10YDE-VE-------2
+        zoneType: LFC_AREA
+      properties:
+        zoneType:
+          enum:
+          - COUNTRY
+          - LFC_AREA
+          - LFC_BLOCK
+          example: LFC_AREA
+          type: string
+        zone:
+          example: 10YDE-VE-------2
+          type: string
+      required:
+      - zone
+      - zoneType
+      type: object
+    TimeInterval:
+      description: Representation of a time interval with start and end times.
+      example:
+        startTime: 2020-04-22T22:00:00Z
+        endTime: 2020-04-23T02:00:00Z
+      properties:
+        startTime:
+          description: Must be before `endTime` in quarter-hour accuracy (UTC).
+          example: 2020-04-22T22:00:00Z
+          format: date-time
+          type: string
+        endTime:
+          description: Must be after `startTime` in quarter-hour accuracy (UTC).
+          example: 2020-04-23T02:00:00Z
+          format: date-time
+          type: string
+      readOnly: true
+      type: object
+    ContractValidityPeriod:
+      description: Representation of a contract validity period.
+      example:
+        endDate: 2020-12-31T00:00:00.000+00:00
+        startDate: 2019-01-01T00:00:00.000+00:00
+      properties:
+        startDate:
+          description: Must be before ´endDate´.
+          example: 2019-01-01
+          format: date
+          type: string
+        endDate:
+          description: Must be after ´startDate´.
+          example: 2020-12-31
+          format: date
+          type: string
+      readOnly: true
+      type: object
+    BidType:
+      default: SIMPLE
+      enum:
+      - SIMPLE
+      - MULTIPART
+      - MULTIPART_COMPONENT
+      - EXCLUSIVE
+      - EXCLUSIVE_COMPONENT
+      - GROUP
+      type: string
+    BidIdentification:
+      description: Bid identification
+      example: ej239eu2uue9229u29
+      pattern: "^[a-zA-Z0-9]{18,22}$"
+      type: string
+    BidTag:
+      description: Custom tag for bids
+      example: custom-tag
+      maxLength: 36
+      minLength: 1
+      pattern: "([a-zA-Z0-9_-])*"
+      type: string
+    TenderIdentification:
+      description: |
+        The tender identification is structured as follows:
+          `[productType]-[deliveryDate]-[market]-[sequenceNumber]`
+
+          * `productType` - one of `fcr`, `afrr` or `mfrr`
+          * `deliveryDate` - ISO 8601 date
+          * `market` - one of `cm`(capacity market) or `em`(energy market)
+          * `sequenceNumber` - An ascending number for the identification of different tender runs or time slices.
+
+         For more details on the new tender id format, see the [reference guide.](/docs/guide#tender-id).
+      example: afrr-2020-04-23-cm-001
+      pattern: "^(fcr|afrr|mfrr)-(([1-9][0-9]{3})-(1[0-2]|0[1-9])-(0[1-9]|[1-2][0-9]|3[0-1]))-((cm|em)-(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+      readOnly: true
+      type: string
+    ResourceIdentification:
+      description: ID of a resource.
+      example: 2UWMW0psXNdE0PqWLZjhY2
+      maxLength: 36
+      minLength: 5
+      pattern: "([a-zA-Z0-9])*"
+      readOnly: true
+      type: string
+    EIC:
+      description: "Representation of EIC. The coding scheme is the Energy Identification\
+        \ Coding Scheme (EIC), maintained by ENTSO-e."
+      example: 10YDE-VE-------2
+      pattern: "^[-A-Z0-9]{16}$"
+      type: string
+    CountryCode:
+      description: ISO-3166-1 alpha-2 country code.
+      example: DE
+      pattern: "^[A-Z]{2}$"
+      type: string
+    ProductType:
+      description: |
+        Reserve product type:
+          * `FCR` - Frequency containment reserves (primary reserve)
+          * `aFRR`- Frequency restoration reserves with automatic activation (secondary reserve)
+          * `mFRR`- Frequency restoration reserves with manual activation (minute reserve).
+      enum:
+      - aFRR
+      - mFRR
+      - FCR
+      type: string
+    ProductName:
+      description: Representation of a product timeslice.
+      enum:
+      - NEG_00_04
+      - NEG_04_08
+      - NEG_08_12
+      - NEG_12_16
+      - NEG_16_20
+      - NEG_20_24
+      - POS_00_04
+      - POS_04_08
+      - POS_08_12
+      - POS_12_16
+      - POS_16_20
+      - POS_20_24
+      - NEGPOS_00_04
+      - NEGPOS_04_08
+      - NEGPOS_08_12
+      - NEGPOS_12_16
+      - NEGPOS_16_20
+      - NEGPOS_20_24
+      - NEGPOS_00_24
+      - NEG_001
+      - NEG_002
+      - NEG_003
+      - NEG_004
+      - NEG_005
+      - NEG_006
+      - NEG_007
+      - NEG_008
+      - NEG_009
+      - NEG_010
+      - NEG_011
+      - NEG_012
+      - NEG_013
+      - NEG_014
+      - NEG_015
+      - NEG_016
+      - NEG_017
+      - NEG_018
+      - NEG_019
+      - NEG_020
+      - NEG_021
+      - NEG_022
+      - NEG_023
+      - NEG_024
+      - NEG_025
+      - NEG_026
+      - NEG_027
+      - NEG_028
+      - NEG_029
+      - NEG_030
+      - NEG_031
+      - NEG_032
+      - NEG_033
+      - NEG_034
+      - NEG_035
+      - NEG_036
+      - NEG_037
+      - NEG_038
+      - NEG_039
+      - NEG_040
+      - NEG_041
+      - NEG_042
+      - NEG_043
+      - NEG_044
+      - NEG_045
+      - NEG_046
+      - NEG_047
+      - NEG_048
+      - NEG_049
+      - NEG_050
+      - NEG_051
+      - NEG_052
+      - NEG_053
+      - NEG_054
+      - NEG_055
+      - NEG_056
+      - NEG_057
+      - NEG_058
+      - NEG_059
+      - NEG_060
+      - NEG_061
+      - NEG_062
+      - NEG_063
+      - NEG_064
+      - NEG_065
+      - NEG_066
+      - NEG_067
+      - NEG_068
+      - NEG_069
+      - NEG_070
+      - NEG_071
+      - NEG_072
+      - NEG_073
+      - NEG_074
+      - NEG_075
+      - NEG_076
+      - NEG_077
+      - NEG_078
+      - NEG_079
+      - NEG_080
+      - NEG_081
+      - NEG_082
+      - NEG_083
+      - NEG_084
+      - NEG_085
+      - NEG_086
+      - NEG_087
+      - NEG_088
+      - NEG_089
+      - NEG_090
+      - NEG_091
+      - NEG_092
+      - NEG_093
+      - NEG_094
+      - NEG_095
+      - NEG_096
+      - NEG_097
+      - NEG_098
+      - NEG_099
+      - NEG_100
+      - POS_001
+      - POS_002
+      - POS_003
+      - POS_004
+      - POS_005
+      - POS_006
+      - POS_007
+      - POS_008
+      - POS_009
+      - POS_010
+      - POS_011
+      - POS_012
+      - POS_013
+      - POS_014
+      - POS_015
+      - POS_016
+      - POS_017
+      - POS_018
+      - POS_019
+      - POS_020
+      - POS_021
+      - POS_022
+      - POS_023
+      - POS_024
+      - POS_025
+      - POS_026
+      - POS_027
+      - POS_028
+      - POS_029
+      - POS_030
+      - POS_031
+      - POS_032
+      - POS_033
+      - POS_034
+      - POS_035
+      - POS_036
+      - POS_037
+      - POS_038
+      - POS_039
+      - POS_040
+      - POS_041
+      - POS_042
+      - POS_043
+      - POS_044
+      - POS_045
+      - POS_046
+      - POS_047
+      - POS_048
+      - POS_049
+      - POS_050
+      - POS_051
+      - POS_052
+      - POS_053
+      - POS_054
+      - POS_055
+      - POS_056
+      - POS_057
+      - POS_058
+      - POS_059
+      - POS_060
+      - POS_061
+      - POS_062
+      - POS_063
+      - POS_064
+      - POS_065
+      - POS_066
+      - POS_067
+      - POS_068
+      - POS_069
+      - POS_070
+      - POS_071
+      - POS_072
+      - POS_073
+      - POS_074
+      - POS_075
+      - POS_076
+      - POS_077
+      - POS_078
+      - POS_079
+      - POS_080
+      - POS_081
+      - POS_082
+      - POS_083
+      - POS_084
+      - POS_085
+      - POS_086
+      - POS_087
+      - POS_088
+      - POS_089
+      - POS_090
+      - POS_091
+      - POS_092
+      - POS_093
+      - POS_094
+      - POS_095
+      - POS_096
+      - POS_097
+      - POS_098
+      - POS_099
+      - POS_100
+      type: string
+    ReserveMarket:
+      description: |
+        Indication of the reserve market:
+          * `CAPACITY` - FCR/aFCR/mFCR capacity market (ger. "Regelleistungsmarkt"),
+          * `ENERGY`- aFRR/mFRR energy market (ger. "Regelarbeitsmarkt").
+      enum:
+      - CAPACITY
+      - ENERGY
+      type: string
+    DeliveryDate:
+      description: Delivery day of offered control reserve / energy (ISO 8601 format
+        YYYY-MM-DD).
+      example: 2020-04-23
+      format: date
+      type: string
+    Direction:
+      enum:
+      - NEG
+      - POS
+      - NEGPOS
+      type: string
+    ActivationType:
+      default: DIRECT
+      enum:
+      - DIRECT
+      - SCHEDULED
+      type: string
+    TechnicalLinkage:
+      example:
+        linkId: 2UWMW0psXNdE0PqWLZjhY2
+      properties:
+        linkId:
+          description: Custom technical link ID
+          example: 2UWMW0psXNdE0PqWLZjhY2
+          maxLength: 36
+          minLength: 1
+          nullable: true
+          pattern: "([a-zA-Z0-9-])*"
+          type: string
+      required:
+      - linkId
+      type: object
+    TechnicalLinkIdentification:
+      description: Custom technical link ID
+      example: 2UWMW0psXNdE0PqWLZjhY2
+      maxLength: 36
+      minLength: 1
+      nullable: true
+      pattern: "([a-zA-Z0-9-])*"
+      type: string
+    ConditionalLinkage:
+      example:
+        links:
+        - linkedTo: ej239eu2uue9229u29
+          condition: null
+        - linkedTo: ej239eu2uue9229u29
+          condition: null
+        - linkedTo: ej239eu2uue9229u29
+          condition: null
+        - linkedTo: ej239eu2uue9229u29
+          condition: null
+        - linkedTo: ej239eu2uue9229u29
+          condition: null
+      properties:
+        links:
+          items:
+            $ref: '#/components/schemas/ConditionalLinkageItem'
+          maxItems: 6
+          minItems: 1
+          type: array
+      required:
+      - links
+      type: object
+    ConditionalLinkageItem:
+      example:
+        linkedTo: ej239eu2uue9229u29
+        condition: null
+      properties:
+        linkedTo:
+          description: Bid identification
+          example: ej239eu2uue9229u29
+          pattern: "^[a-zA-Z0-9]{18,22}$"
+          type: string
+        condition:
+          $ref: '#/components/schemas/LinkageCondition'
+      required:
+      - conditon
+      - linkedTo
+      type: object
+    LinkageCondition:
+      default: LC_01
+      description: |
+        The following conditions are allowed:
+          * `LC_01` - if linked bid in earlier MTU period is activated, the current bid is unavailable,
+          * `LC_02` - if linked bid in earlier MTU period is activated in scheduled activation (SA), the current bid is unavailable,
+          * `LC_03` - if linked bid in earlier MTU period is activated in SA, the current bid is unavailable for direct activation (DA),
+          * `LC_04` - if linked bid in earlier MTU period is activated in DA, the current bid is unavailable,
+          * `LC_05` - if linked bid in earlier MTU period is activated in DA, the current bid is unavailable for DA or
+          * `LC_06` - if linked bid in earlier MTU period is **not activated**, the current bid is unavailable.
+      enum:
+      - LC_01
+      - LC_02
+      - LC_03
+      - LC_04
+      - LC_05
+      - LC_06
+      type: string
+    Prices:
+      description: Price information of the bid.
+      items:
+        $ref: '#/components/schemas/Price'
+      minItems: 1
+      type: array
+      uniqueItems: true
+    Price:
+      description: Representation of price element.
+      example:
+        amount: 7.98
+        measureUnit: MAW
+        currency: EUR
+        type: OFFER
+        resolution: PT1H
+        paymentDirection: GRID_TO_PROVIDER
+      properties:
+        amount:
+          description: Specify the amount.
+          example: 7.98
+          minimum: 0
+          multipleOf: 0.01
+          type: number
+        measureUnit:
+          description: "The unit of measurement underlying the price (MW per unit\
+            \ (code MAW), MWh per unit (code MWH)) is used to differentiate between\
+            \ capacity fees (EUR/MW) and energy prices (EUR/MWh). The units of measurement\
+            \ are in accordance with UN/ECE Recommendation 20."
+          enum:
+          - MAW
+          - MWH
+          type: string
+        resolution:
+          description: Capacity price resolution in ISO 8601 format. This field is
+            read-only for control purposes. It is determined automatically depending
+            on the modalities applicable to the tender.
+          enum:
+          - PT1H
+          - PT3H
+          - PT4H
+          - PT5H
+          - P1D
+          readOnly: true
+          type: string
+        currency:
+          default: EUR
+          description: The currency in which the monetary amount is expressed. The
+            maximum length of this information is 3 alphanumeric characters respecting
+            the standard ISO 4217.
+          example: EUR
+          pattern: "[A-Z]{3}"
+          type: string
+        paymentDirection:
+          default: GRID_TO_PROVIDER
+          description: The direction of payment for activated control power relates
+            to the energy price only (measureUnit = MWH).
+          enum:
+          - PROVIDER_TO_GRID
+          - GRID_TO_PROVIDER
+          type: string
+        type:
+          description: |
+            Type of price. When bidding, the type must have the value `OFFER`.
+          enum:
+          - OFFER
+          - SETTLEMENT
+          type: string
+      required:
+      - amount
+      - measureUnit
+      type: object
+    Quantity:
+      description: Quantity of control reserve capacity / energy
+      example:
+        quantity: 5
+        measureUnit: MAW
+      properties:
+        quantity:
+          description: Specify the quantity.
+          example: 5
+          format: int32
+          minimum: 0
+          multipleOf: 1
+          type: number
+        measureUnit:
+          description: "The unit of measurement underlying the volume (MW per unit\
+            \ (code MAW), MWh per unit (code MWH)). The units of measurement are in\
+            \ accordance with UN/ECE Recommendation 20."
+          enum:
+          - MAW
+          type: string
+      required:
+      - measureUnit
+      - quantity
+      type: object
+    Health:
+      additionalProperties:
+        $ref: '#/components/schemas/HealthState'
+      description: API health indicator. Provides information about the current availability
+        of base functions of the IP RL platform.
+      example:
+        bsp-data-access: null
+        documents-data-access: null
+        bidding-energy-market: null
+        bidding-capacity-market: null
+        tenders-data-access: null
+        results-data-access: null
+      properties:
+        bidding-capacity-market:
+          $ref: '#/components/schemas/HealthState'
+        bidding-energy-market:
+          $ref: '#/components/schemas/HealthState'
+        tenders-data-access:
+          $ref: '#/components/schemas/HealthState'
+        results-data-access:
+          $ref: '#/components/schemas/HealthState'
+        documents-data-access:
+          $ref: '#/components/schemas/HealthState'
+        bsp-data-access:
+          $ref: '#/components/schemas/HealthState'
+      readOnly: true
+      type: object
+    HealthState:
+      description: Health endpoint state.
+      enum:
+      - UP
+      - DOWN
+      type: string
+    BatchRequest:
+      description: Representation of the batch request.
+      example:
+        ops:
+        - path: /bids/iBXpgOeOjriAnqOmxm1G
+          method: DELETE
+        - path: /bids/Bmau2TaKQ69OWz8B1fPi
+          method: DELETE
+        - path: /bids/Bmau2TaKQ69OWz8B1fPi
+          method: DELETE
+        - path: /bids
+          method: POST
+          body:
+            productType: aFRR
+            deliveryDate: 2020-11-23
+            market: ENERGY
+            productName: NEG_00_04
+            connectingZone":
+              zoneType: LFC_AREA
+              zone: 10YDE-VE-------2
+            offeredQuantity:
+              quantity: 5
+              measureUnit: MAW
+            prices:
+            - amount: 42.99
+              measureUnit: MWH
+        parallel: false
+      properties:
+        ops:
+          description: List of operations to be processed.
+          items:
+            $ref: '#/components/schemas/BatchOperation'
+          maxItems: 100
+          minItems: 1
+          type: array
+        parallel:
+          default: false
+          description: "If true, then the operations can be executed in arbitrary\
+            \ order and in parallel. If false, then serial execution in request order\
+            \ will be enforced. This property has no impact on the results order in\
+            \ the batch response object."
+          type: boolean
+      required:
+      - ops
+      type: object
+    BatchResponse:
+      description: Result of the batch request.
+      example:
+        responses:
+        - status: 204
+          headers: null
+          body: null
+        - status: 204
+          headers: null
+          body: null
+        - status: 404
+          headers: null
+          body:
+            status: 404
+            type: "404"
+            title: Bid not found
+            detail: Bid not found
+            instance: 6lBGG1LXH8b7gK4X
+        - status: 201
+          headers:
+            link: </v2/bids/Bmauz8GLs012JaXc3HsW>; rel='GetBidById'
+          body:
+            id: Bmauz8GLs012JaXc3HsW
+            productType: aFRR
+            deliveryDate: 2020-11-23
+            market: ENERGY
+            productName: NEG_00_04
+            direction: NEG
+            timeInterval:
+              startTime: 2020-11-22T23:00:00.000Z
+              endTime: 2020-11-23T03:00:00.000Z
+            connectingZone:
+              zoneType: LFC_AREA
+              zone: 10YDE-VE-------2
+            resourceProvider: 10YDE-VE-------2
+            status: OFFERED
+            receiptTimestamp: 2020-11-22T11:31:07.223Z
+            revisionTimestamp: 2020-11-22T11:31:07.223Z
+            indivisible: false
+            offeredQuantity:
+              quantity: 5
+              measureUnit: MAW
+            prices:
+            - amount: 42.99
+              measureUnit: MWH
+              currency: EUR
+              paymentDirection: GRID_TO_PROVIDER
+              type: OFFER
+        successfulOps: 3
+        failedOps: 1
+      properties:
+        responses:
+          description: Contains the list of individual responses in the order of the
+            batch requests.
+          items:
+            $ref: '#/components/schemas/BatchOperationResponse'
+          type: array
+        successfulOps:
+          description: Number of successful requests (2xx status code).
+          format: int32
+          type: integer
+        failedOps:
+          description: Number of failed requests (all non 2xx status codes).
+          format: int32
+          type: integer
+      readOnly: true
+      type: object
+    BatchOperationResponse:
+      description: Response of a single batch operation.
+      properties:
+        status:
+          description: HTTP status code.
+          format: int32
+          type: integer
+        headers:
+          additionalProperties:
+            type: string
+          description: HTTP response header.
+          type: object
+        body: {}
+      readOnly: true
+      type: object
+    BatchOperation:
+      properties:
+        path:
+          description: A permitted relative BSP API v2 resource path.
+          example: /bids/Bmauz8GLs012JaXc3HsW
+          pattern: "^\\/(bids)(\\/([a-zA-Z0-9]{5,36}))?$"
+          type: string
+        method:
+          $ref: '#/components/schemas/BatchSupportedHttpMethod'
+        body:
+          $ref: '#/components/schemas/BatchOperation_body'
+      required:
+      - method
+      - path
+      type: object
+    BatchSupportedHttpMethod:
+      description: What type of request to make.
+      enum:
+      - POST
+      - PATCH
+      - DELETE
+      type: string
+    ProblemDetails:
+      description: RFC 7807 standard format for returning problem details from HTTP
+        APIs.
+      properties:
+        status:
+          description: Conveying the HTTP status code.
+          format: int32
+          type: integer
+        type:
+          description: "A URL to a document describing the error condition (optional,\
+            \ and \"about:blank\" is assumed if none is provided; should resolve to\
+            \ a human-readable document)."
+          format: uri
+          type: string
+        title:
+          description: "A short, human-readable summary of the problem type."
+          type: string
+        detail:
+          description: A human-readable explanation specific to this occurrence of
+            the problem.
+          type: string
+        instance:
+          description: A URI reference that identifies the specific occurrence of
+            the problem.
+          format: uri
+          type: string
+      readOnly: true
+      type: object
+    Demand_data:
+      example:
+        maxExport: 0
+        coreShare: 0
+        demand: 0
+      properties:
+        demand:
+          minimum: 0
+          type: integer
+        maxExport:
+          minimum: 0
+          nullable: true
+          type: integer
+        coreShare:
+          minimum: 0
+          nullable: true
+          type: integer
+      type: object
+    Notification_reference:
+      description: Elements for assigning the notifaction to the specific business
+        process.
+      example:
+        market: null
+        tender: afrr-2020-04-23-cm-001
+        deliveryDate: 2020-04-23T00:00:00.000+00:00
+        productType: null
+        products:
+        - null
+        - null
+      properties:
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        deliveryDate:
+          description: Delivery day of offered control reserve / energy. (ISO 8601
+            format YYYY-MM-DD).
+          example: 2020-04-23
+          format: date
+          type: string
+        market:
+          $ref: '#/components/schemas/ReserveMarket'
+        tender:
+          description: |
+            The tender identification is structured as follows:
+              `[productType]-[deliveryDate]-[market]-[sequenceNumber]`
+
+              * `productType` - one of `fcr`, `afrr` or `mfrr`
+              * `deliveryDate` - ISO 8601 date
+              * `market` - one of `cm`(capacity market) or `em`(energy market)
+              * `sequenceNumber` - An ascending number for the identification of different tender runs or time slices.
+
+             For more details on the new tender id format, see the [reference guide.](/docs/guide#tender-id).
+          example: afrr-2020-04-23-cm-001
+          pattern: "^(fcr|afrr|mfrr)-(([1-9][0-9]{3})-(1[0-2]|0[1-9])-(0[1-9]|[1-2][0-9]|3[0-1]))-((cm|em)-(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+          readOnly: true
+          type: string
+        products:
+          items:
+            $ref: '#/components/schemas/ProductName'
+          type: array
+          uniqueItems: true
+      type: object
+    BatchOperation_body:
+      description: Request body. Required for PATCH and POST operations.
+      oneOf:
+      - $ref: '#/components/schemas/BidSubmission'
+      - $ref: '#/components/schemas/BidModification'
+      type: object
+  securitySchemes:
+    OAuth2:
+      flows:
+        clientCredentials:
+          scopes:
+            read: Grants read access.
+            write: Grants write access
+          tokenUrl: https://api.regelleistung.net/oauth/token
+      type: oauth2
